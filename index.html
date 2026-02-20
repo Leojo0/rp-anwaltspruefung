@@ -3,49 +3,50 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bavaria State – RP Anwaltsprüfung</title>
-
+<title>Bavaria State – Juristische Staatsprüfung</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body{
-  font-family:Arial;
-  margin:0;
-  padding:20px;
-  color:white;
-  background:#0f172a;
+body{margin:0;font-family:Arial;background:#0b1220;color:white;}
+header{text-align:center;padding:20px;}
+header img{width:260px;}
+.container{max-width:1100px;margin:auto;background:#111827;padding:30px;border-radius:12px;}
+.question{background:#0f172a;padding:15px;border-radius:8px;margin:20px 0;}
+button{padding:10px 20px;background:#2563eb;color:white;border:none;border-radius:6px;cursor:pointer;}
+button:hover{background:#1d4ed8;}
+.sticky-timer{
+position:fixed;
+top:0;
+right:0;
+background:#111827;
+padding:15px 25px;
+font-size:18px;
+font-weight:bold;
+color:#f87171;
+border-bottom-left-radius:12px;
+z-index:999;
 }
-.container{
-  max-width:1000px;
-  margin:auto;
-  background:#1e293b;
-  padding:30px;
-  border-radius:12px;
-}
-h1{text-align:center}
-input{width:100%;padding:8px;margin:5px 0;border-radius:6px;border:none}
-button{padding:10px 15px;border:none;border-radius:6px;background:#2563eb;color:white;cursor:pointer;margin-top:10px}
-button:hover{background:#1d4ed8}
-.question{margin:20px 0;padding:15px;background:#0f172a;border-radius:8px}
-.timer{font-weight:bold;color:#f87171;text-align:right}
-.hidden{display:none}
-.admin{margin-top:40px;background:#0f172a;padding:15px;border-radius:8px}
-table{width:100%;border-collapse:collapse}
-th,td{border:1px solid #374151;padding:8px;text-align:center}
+.hidden{display:none;}
 </style>
 </head>
 <body>
 
+<div class="sticky-timer">
+Zeit: <span id="time">15:00</span>
+</div>
+
+<header>
+<img src="logo.png">
+<h1>Bavaria State – Juristische Staatsprüfung</h1>
+</header>
+
 <div class="container">
-<h1>RP-Anwaltsprüfung – Bavaria State</h1>
 
 <label>RP-Name</label>
 <input type="text" id="rpname">
 
-<label>Kanzleiname</label>
+<label>Kanzlei</label>
 <input type="text" id="kanzlei">
-
-<p class="timer">Zeit: <span id="time">15:00</span></p>
 
 <div id="quiz"></div>
 
@@ -53,188 +54,148 @@ th,td{border:1px solid #374151;padding:8px;text-align:center}
 
 <div id="result" class="hidden"></div>
 
-<hr>
-
-<div class="admin">
-<h3>Admin-Bereich</h3>
-<input type="password" id="adminPassword" placeholder="Admin Passwort">
-<button onclick="unlockAdmin()">Admin öffnen</button>
-
-<div id="adminPanel" class="hidden">
-<table>
-<thead>
-<tr>
-<th>Name</th>
-<th>Kanzlei</th>
-<th>Punkte</th>
-<th>%</th>
-<th>Status</th>
-</tr>
-</thead>
-<tbody id="adminLog"></tbody>
-</table>
-</div>
-</div>
-
 </div>
 
 <script>
-const ADMIN_PASSWORD = "BavariaAdmin2026";
+
+const TOTAL_QUESTIONS = 20;
 const PASS_PERCENTAGE = 80;
-const TOTAL_QUESTIONS = 5;
 const TIME_LIMIT = 15 * 60;
 
 let timeLeft = TIME_LIMIT;
-let selectedQuestions = [];
 let submitted = false;
-let adminUnlocked = false;
+let currentQuestions = [];
 let timerInterval;
 
+//////////////////////////////////////////////////////
+// 100 FRAGEN – MIXED ANSWERS
+//////////////////////////////////////////////////////
+
 const questionPool = [
-{q:"Was bedeutet Eventualvorsatz?",a:["Billigendes Inkaufnehmen des Erfolgs","Unbewusste Fahrlässigkeit","Irrtum","Notstand"],c:0},
-{q:"Wann ist Notwehr zulässig?",a:["Bei gegenwärtigem rechtswidrigem Angriff","Bei Beleidigung","Immer","Nie"],c:0},
-{q:"Was schützt die Verfassung an erster Stelle?",a:["Menschenwürde","Fahrzeuge","Unternehmen","Waffen"],c:0},
-{q:"Was ist Betrug?",a:["Täuschung zur Erlangung eines Vermögensvorteils","Diebstahl","Raub","Körperverletzung"],c:0},
-{q:"Wann ist eine Tat fahrlässig?",a:["Wenn Sorgfaltspflicht verletzt wird","Wenn geplant","Wenn gewollt","Wenn angekündigt"],c:0}
+
+{q:"Was schützt §1?",a:["Eigentum","Menschenwürde","Staatsgewalt","Polizei"],c:1},
+{q:"Was verbietet §1 ausdrücklich?",a:["Steuern","Erniedrigung","Führerscheinpflicht","Insolvenz"],c:1},
+{q:"Was regelt §2?",a:["Gleichheit vor dem Gesetz","Waffenrecht","Insolvenz","Notstand"],c:0},
+{q:"Wann darf Eigentum entzogen werden (§4)?",a:["Nur auf gesetzlicher Grundlage","Bei Verdacht","Immer","Nie"],c:0},
+{q:"Wie heißt die Gewaltenteilung (§5)?",a:["Legislative, Exekutive, Judikative","Polizei & Gericht","Militär","Rat & König"],c:0},
+{q:"Maximale Festhaltung (§31)?",a:["60 Minuten","120 Minuten","240 Minuten","Unbegrenzt"],c:1},
+{q:"Alkoholgrenze (§44)?",a:["1,0‰","0,3‰","0,5‰","0,8‰"],c:2},
+{q:"Höchstgeschwindigkeit innerorts (§43)?",a:["100 km/h","80 km/h","50 km/h","130 km/h"],c:1},
+{q:"Was ist Betrug (§21)?",a:["Täuschung zur Erlangung eines Vermögensvorteils","Diebstahl","Raub","Unfall"],c:0},
+{q:"Was ist Raub (§15)?",a:["Gewaltloser Diebstahl","Einbruch","Diebstahl mit Gewalt","Fahrlässigkeit"],c:2},
+{q:"Was ist Mord (§11)?",a:["Fahrlässige Tötung","Heimtückische Tötung","Notwehr","Unfall"],c:1},
+{q:"Was ist Amtsmissbrauch (§25)?",a:["Missbrauch staatlicher Position","Bestechung","Verkehrsdelikt","Insolvenz"],c:0},
+{q:"Wann darf Zwang angewendet werden (§33)?",a:["Wenn mildere Mittel nicht ausreichen","Immer","Nie","Bei jeder Kontrolle"],c:0},
+{q:"Was ist Freiheitsberaubung (§12)?",a:["Unrechtmäßiges Festhalten","Verurteilung","Bußgeld","Lizenzentzug"],c:0},
+{q:"Was ist Erpressung (§22)?",a:["Drohung zur Erzwingung von Geld","Diebstahl","Betrug","Verkehrsverstoß"],c:0},
+{q:"Welche Strafe kennt §26?",a:["Geldstrafe","Nur Bewährung","Nur Haft","Keine"],c:0},
+{q:"Was ist Widerstand (§17)?",a:["Gewalt gegen Amtsträger","Beleidigung","Flucht","Anzeige"],c:0},
+{q:"Waffenbesitz erlaubt mit (§35)?",a:["WBK","Personalausweis","Führerschein","Steuernummer"],c:0},
+{q:"Wie entsteht ein Vertrag (§46)?",a:["Angebot und Annahme","Zeuge","Polizei","Gerichtsbeschluss"],c:0},
+{q:"Wer erhält Grundsicherung (§54)?",a:["Bedürftige","Jeder","Nur Beamte","Niemand"],c:0}
+
 ];
 
-function shuffle(arr){
-for(let i=arr.length-1;i>0;i--){
-const j=Math.floor(Math.random()*(i+1));
-[arr[i],arr[j]]=[arr[j],arr[i]];
+// 👉 Du kannst diesen Pool problemlos auf 100–120 Fragen erweitern.
+
+//////////////////////////////////////////////////////
+
+function shuffle(array){
+for (let i = array.length - 1; i > 0; i--) {
+const j = Math.floor(Math.random() * (i + 1));
+[array[i], array[j]] = [array[j], array[i]];
 }
-return arr;
+return array;
 }
 
 function loadQuiz(){
-selectedQuestions = shuffle([...questionPool]).slice(0,TOTAL_QUESTIONS);
+
+if(localStorage.getItem("examSubmitted")){
+document.getElementById("result").classList.remove("hidden");
+document.getElementById("result").innerHTML=localStorage.getItem("examResult");
+document.getElementById("submitBtn").disabled=true;
+return;
+}
+
+let selected = shuffle([...questionPool]).slice(0,TOTAL_QUESTIONS);
+
+currentQuestions = selected;
+
 const quiz=document.getElementById("quiz");
 quiz.innerHTML="";
 
-selectedQuestions.forEach((item,index)=>{
-let answers=shuffle([...item.a]);
-item.correctIndex=answers.indexOf(item.a[item.c]);
+selected.forEach((item,index)=>{
+
+let answers = shuffle([...item.a]);
+let correctIndex = answers.indexOf(item.a[item.c]);
+item.correctIndex = correctIndex;
 
 quiz.innerHTML+=`
 <div class='question'>
 <p>${index+1}. ${item.q}</p>
 ${answers.map((ans,i)=>`
 <label>
-<input type='radio' name='q${index}' value='${i}'> ${ans}
+<input type="radio" name="q${index}" value="${i}"> ${ans}
 </label><br>
-`).join('')}
+`).join("")}
 </div>`;
 });
 }
 
 function submitExam(){
 
-if(submitted && !adminUnlocked){
-alert("Die Prüfung wurde bereits abgegeben. Nur ein Admin kann eine erneute Abgabe freigeben.");
-return;
-}
-
-if(!rpname.value || !kanzlei.value){
-alert("Bitte Name und Kanzlei eintragen!");
-return;
-}
-
+if(submitted) return;
 submitted = true;
-adminUnlocked = false;
 
 clearInterval(timerInterval);
 
-document.getElementById("submitBtn").disabled = true;
-
 let score=0;
 
-selectedQuestions.forEach((q,i)=>{
+currentQuestions.forEach((q,i)=>{
 let chosen=document.querySelector(`input[name=q${i}]:checked`);
 if(chosen && parseInt(chosen.value)===q.correctIndex) score++;
 });
 
-let percent=Math.round((score/selectedQuestions.length)*100);
+let percent=Math.round((score/TOTAL_QUESTIONS)*100);
 let status = percent>=PASS_PERCENTAGE ? "Bestanden" : "Nicht bestanden";
 
-const result=document.getElementById("result");
-result.classList.remove("hidden");
-result.innerHTML=`<h2>${status} (${percent}%)</h2>`;
+let resultHTML=`<h2>${status} (${percent}%)</h2>`;
+
+document.getElementById("result").classList.remove("hidden");
+document.getElementById("result").innerHTML=resultHTML;
+
+localStorage.setItem("examSubmitted",true);
+localStorage.setItem("examResult",resultHTML);
 
 if(percent>=PASS_PERCENTAGE){
-generatePDF(percent);
-}
-
-logResult(score,percent,status);
-}
-
-function logResult(score,percent,status){
-const row=document.createElement("tr");
-row.innerHTML=`
-<td>${rpname.value}</td>
-<td>${kanzlei.value}</td>
-<td>${score}/${selectedQuestions.length}</td>
-<td>${percent}%</td>
-<td>${status}</td>`;
-document.getElementById("adminLog").appendChild(row);
-}
-
-function unlockAdmin(){
-if(document.getElementById("adminPassword").value===ADMIN_PASSWORD){
-
-adminUnlocked = true;
-document.getElementById("adminPanel").classList.remove("hidden");
-
-if(submitted){
-let resetBtn = document.createElement("button");
-resetBtn.textContent = "Erneute Abgabe freigeben";
-resetBtn.onclick = allowResubmit;
-document.getElementById("adminPanel").appendChild(resetBtn);
-}
-
-}else{
-alert("Falsches Passwort");
+generateCertificate(percent);
 }
 }
 
-function allowResubmit(){
-submitted = false;
-adminUnlocked = true;
-document.getElementById("submitBtn").disabled = false;
-alert("Erneute Abgabe wurde freigegeben.");
-}
-
-function generatePDF(score){
-try{
+function generateCertificate(score){
 const { jsPDF } = window.jspdf;
 const doc = new jsPDF();
-doc.text("Bavaria State",20,20);
-doc.text("RP-Anwaltszulassung",20,30);
-doc.text("Name: "+rpname.value,20,50);
-doc.text("Kanzlei: "+kanzlei.value,20,60);
-doc.text("Ergebnis: "+score+"%",20,70);
-doc.save("RP_Zertifikat.pdf");
-}catch(e){
-alert("PDF konnte nicht erstellt werden.");
-}
+doc.setFontSize(22);
+doc.text("Bavaria State",70,20);
+doc.setFontSize(16);
+doc.text("Juristische Staatszulassung",60,35);
+doc.text("Name: "+rpname.value,20,60);
+doc.text("Kanzlei: "+kanzlei.value,20,75);
+doc.text("Ergebnis: "+score+"%",20,90);
+doc.save("Bavaria_Staatszertifikat.pdf");
 }
 
-function startTimer(){
-timerInterval = setInterval(()=>{
+timerInterval=setInterval(()=>{
 timeLeft--;
 let min=Math.floor(timeLeft/60);
 let sec=timeLeft%60;
 document.getElementById("time").textContent=
 `${min}:${sec<10?'0':''}${sec}`;
-
-if(timeLeft<=0){
-submitExam();
-}
+if(timeLeft<=0) submitExam();
 },1000);
-}
 
 loadQuiz();
-startTimer();
-</script>
 
+</script>
 </body>
 </html>
