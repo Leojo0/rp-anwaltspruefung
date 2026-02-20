@@ -4,7 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bavaria State – Juristische Staatsprüfung</title>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+const supabaseUrl = "https://nwjfaikejvxqfhmqhsam.supabase.co";
+const supabaseKey = "sb_publishable_mPuwRisWHWmQR7hdLx1K1A_WsLvGlqu";
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+</script>
 
 <style>
 body{margin:0;font-family:Arial;background:#0b1220;color:white;}
@@ -29,6 +37,7 @@ z-index:999;
 .hidden{display:none;}
 </style>
 </head>
+
 <body>
 
 <div class="sticky-timer">
@@ -54,6 +63,13 @@ Zeit: <span id="time">15:00</span>
 
 <div id="result" class="hidden"></div>
 
+<hr>
+
+<h3>Admin Login</h3>
+<input type="email" id="adminEmail" placeholder="Admin Email">
+<input type="password" id="adminPass" placeholder="Admin Passwort">
+<button onclick="adminLogin()">Admin Login</button>
+
 </div>
 
 <script>
@@ -66,10 +82,6 @@ let timeLeft = TIME_LIMIT;
 let submitted = false;
 let currentQuestions = [];
 let timerInterval;
-
-//////////////////////////////////////////////////////
-// 100 FRAGEN – MIXED ANSWERS
-//////////////////////////////////////////////////////
 
 const questionPool = [
 
@@ -96,10 +108,6 @@ const questionPool = [
 
 ];
 
-// 👉 Du kannst diesen Pool problemlos auf 100–120 Fragen erweitern.
-
-//////////////////////////////////////////////////////
-
 function shuffle(array){
 for (let i = array.length - 1; i > 0; i--) {
 const j = Math.floor(Math.random() * (i + 1));
@@ -109,13 +117,6 @@ return array;
 }
 
 function loadQuiz(){
-
-if(localStorage.getItem("examSubmitted")){
-document.getElementById("result").classList.remove("hidden");
-document.getElementById("result").innerHTML=localStorage.getItem("examResult");
-document.getElementById("submitBtn").disabled=true;
-return;
-}
 
 let selected = shuffle([...questionPool]).slice(0,TOTAL_QUESTIONS);
 
@@ -142,7 +143,7 @@ ${answers.map((ans,i)=>`
 });
 }
 
-function submitExam(){
+async function submitExam(){
 
 if(submitted) return;
 submitted = true;
@@ -164,12 +165,20 @@ let resultHTML=`<h2>${status} (${percent}%)</h2>`;
 document.getElementById("result").classList.remove("hidden");
 document.getElementById("result").innerHTML=resultHTML;
 
-localStorage.setItem("examSubmitted",true);
-localStorage.setItem("examResult",resultHTML);
+await supabaseClient.from("exams").insert([
+{
+name: document.getElementById("rpname").value,
+kanzlei: document.getElementById("kanzlei").value,
+score: score,
+percent: percent,
+status: status
+}
+]);
 
 if(percent>=PASS_PERCENTAGE){
 generateCertificate(percent);
 }
+
 }
 
 function generateCertificate(score){
@@ -194,8 +203,37 @@ document.getElementById("time").textContent=
 if(timeLeft<=0) submitExam();
 },1000);
 
+function adminLogin(){
+
+const email = document.getElementById("adminEmail").value;
+const password = document.getElementById("adminPass").value;
+
+async function adminLogin(){
+
+const email = document.getElementById("adminEmail").value;
+const password = document.getElementById("adminPass").value;
+
+const { data, error } = await supabaseClient.auth.signInWithPassword({
+email: email,
+password: password
+});
+
+console.log(data, error);
+
+if(error){
+alert(error.message);
+return;
+}
+
+window.location.href = "admin.html";
+
+}
+
+}
+
 loadQuiz();
 
 </script>
+
 </body>
 </html>
