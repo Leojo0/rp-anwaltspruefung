@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bavaria State – RP Anwaltsprüfung</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+body{
+  font-family:Arial;
+  margin:0;
+  padding:20px;
+  color:white;
+  background:#0f172a;
+}
+.container{
+  max-width:1000px;
+  margin:auto;
+  background:#1e293b;
+  padding:30px;
+  border-radius:12px;
+}
+h1{text-align:center}
+input{width:100%;padding:8px;margin:5px 0;border-radius:6px;border:none}
+button{padding:10px 15px;border:none;border-radius:6px;background:#2563eb;color:white;cursor:pointer;margin-top:10px}
+button:hover{background:#1d4ed8}
+.question{margin:20px 0;padding:15px;background:#0f172a;border-radius:8px}
+.timer{font-weight:bold;color:#f87171;text-align:right}
+.hidden{display:none}
+.admin{margin-top:40px;background:#0f172a;padding:15px;border-radius:8px}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid #374151;padding:8px;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h1>RP-Anwaltsprüfung – Bavaria State</h1>
+
+<label>RP-Name</label>
+<input type="text" id="rpname">
+
+<label>Kanzleiname</label>
+<input type="text" id="kanzlei">
+
+<p class="timer">Zeit: <span id="time">15:00</span></p>
+
+<div id="quiz"></div>
+
+<button id="submitBtn" onclick="submitExam()">Prüfung abgeben</button>
+
+<div id="result" class="hidden"></div>
+
+<hr>
+
+<div class="admin">
+<h3>Admin-Bereich</h3>
+<input type="password" id="adminPassword" placeholder="Admin Passwort">
+<button onclick="unlockAdmin()">Admin öffnen</button>
+
+<div id="adminPanel" class="hidden">
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Kanzlei</th>
+<th>Punkte</th>
+<th>%</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody id="adminLog"></tbody>
+</table>
+</div>
+</div>
+
+</div>
+
+<script>
+const ADMIN_PASSWORD = "BavariaAdmin2026";
+const PASS_PERCENTAGE = 80;
+const TOTAL_QUESTIONS = 5;
+const TIME_LIMIT = 15 * 60;
+
+let timeLeft = TIME_LIMIT;
+let selectedQuestions = [];
+let submitted = false;
+let adminUnlocked = false;
+let timerInterval;
+
+const questionPool = [
+{q:"Was bedeutet Eventualvorsatz?",a:["Billigendes Inkaufnehmen des Erfolgs","Unbewusste Fahrlässigkeit","Irrtum","Notstand"],c:0},
+{q:"Wann ist Notwehr zulässig?",a:["Bei gegenwärtigem rechtswidrigem Angriff","Bei Beleidigung","Immer","Nie"],c:0},
+{q:"Was schützt die Verfassung an erster Stelle?",a:["Menschenwürde","Fahrzeuge","Unternehmen","Waffen"],c:0},
+{q:"Was ist Betrug?",a:["Täuschung zur Erlangung eines Vermögensvorteils","Diebstahl","Raub","Körperverletzung"],c:0},
+{q:"Wann ist eine Tat fahrlässig?",a:["Wenn Sorgfaltspflicht verletzt wird","Wenn geplant","Wenn gewollt","Wenn angekündigt"],c:0}
+];
+
+function shuffle(arr){
+for(let i=arr.length-1;i>0;i--){
+const j=Math.floor(Math.random()*(i+1));
+[arr[i],arr[j]]=[arr[j],arr[i]];
+}
+return arr;
+}
+
+function loadQuiz(){
+selectedQuestions = shuffle([...questionPool]).slice(0,TOTAL_QUESTIONS);
+const quiz=document.getElementById("quiz");
+quiz.innerHTML="";
+
+selectedQuestions.forEach((item,index)=>{
+let answers=shuffle([...item.a]);
+item.correctIndex=answers.indexOf(item.a[item.c]);
+
+quiz.innerHTML+=`
+<div class='question'>
+<p>${index+1}. ${item.q}</p>
+${answers.map((ans,i)=>`
+<label>
+<input type='radio' name='q${index}' value='${i}'> ${ans}
+</label><br>
+`).join('')}
+</div>`;
+});
+}
+
+function submitExam(){
+
+if(submitted && !adminUnlocked){
+alert("Die Prüfung wurde bereits abgegeben. Nur ein Admin kann eine erneute Abgabe freigeben.");
+return;
+}
+
+if(!rpname.value || !kanzlei.value){
+alert("Bitte Name und Kanzlei eintragen!");
+return;
+}
+
+submitted = true;
+adminUnlocked = false;
+
+clearInterval(timerInterval);
+
+document.getElementById("submitBtn").disabled = true;
+
+let score=0;
+
+selectedQuestions.forEach((q,i)=>{
+let chosen=document.querySelector(`input[name=q${i}]:checked`);
+if(chosen && parseInt(chosen.value)===q.correctIndex) score++;
+});
+
+let percent=Math.round((score/selectedQuestions.length)*100);
+let status = percent>=PASS_PERCENTAGE ? "Bestanden" : "Nicht bestanden";
+
+const result=document.getElementById("result");
+result.classList.remove("hidden");
+result.innerHTML=`<h2>${status} (${percent}%)</h2>`;
+
+if(percent>=PASS_PERCENTAGE){
+generatePDF(percent);
+}
+
+logResult(score,percent,status);
+}
+
+function logResult(score,percent,status){
+const row=document.createElement("tr");
+row.innerHTML=`
+<td>${rpname.value}</td>
+<td>${kanzlei.value}</td>
+<td>${score}/${selectedQuestions.length}</td>
+<td>${percent}%</td>
+<td>${status}</td>`;
+document.getElementById("adminLog").appendChild(row);
+}
+
+function unlockAdmin(){
+if(document.getElementById("adminPassword").value===ADMIN_PASSWORD){
+
+adminUnlocked = true;
+document.getElementById("adminPanel").classList.remove("hidden");
+
+if(submitted){
+let resetBtn = document.createElement("button");
+resetBtn.textContent = "Erneute Abgabe freigeben";
+resetBtn.onclick = allowResubmit;
+document.getElementById("adminPanel").appendChild(resetBtn);
+}
+
+}else{
+alert("Falsches Passwort");
+}
+}
+
+function allowResubmit(){
+submitted = false;
+adminUnlocked = true;
+document.getElementById("submitBtn").disabled = false;
+alert("Erneute Abgabe wurde freigegeben.");
+}
+
+function generatePDF(score){
+try{
+const { jsPDF } = window.jspdf;
+const doc = new jsPDF();
+doc.text("Bavaria State",20,20);
+doc.text("RP-Anwaltszulassung",20,30);
+doc.text("Name: "+rpname.value,20,50);
+doc.text("Kanzlei: "+kanzlei.value,20,60);
+doc.text("Ergebnis: "+score+"%",20,70);
+doc.save("RP_Zertifikat.pdf");
+}catch(e){
+alert("PDF konnte nicht erstellt werden.");
+}
+}
+
+function startTimer(){
+timerInterval = setInterval(()=>{
+timeLeft--;
+let min=Math.floor(timeLeft/60);
+let sec=timeLeft%60;
+document.getElementById("time").textContent=
+`${min}:${sec<10?'0':''}${sec}`;
+
+if(timeLeft<=0){
+submitExam();
+}
+},1000);
+}
+
+loadQuiz();
+startTimer();
+</script>
+
+</body>
+</html>
