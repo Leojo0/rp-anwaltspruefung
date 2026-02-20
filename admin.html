@@ -1,0 +1,150 @@
+```html
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bavaria State – Admin Panel</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+const supabaseUrl = "https://nwjfaikejvxqfhmqhsam.supabase.co";
+const supabaseKey = "sb_publishable_mPuwRisWHWmQR7hdLx1K1A_WsLvGlqu";
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+</script>
+
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:#0b1220;
+color:white;
+}
+
+header{
+text-align:center;
+padding:20px;
+}
+
+header img{
+width:250px;
+}
+
+.container{
+max-width:1100px;
+margin:auto;
+background:#111827;
+padding:30px;
+border-radius:12px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:20px;
+}
+
+th,td{
+border:1px solid #374151;
+padding:10px;
+text-align:center;
+}
+
+button{
+padding:8px 15px;
+background:#2563eb;
+border:none;
+color:white;
+border-radius:6px;
+cursor:pointer;
+}
+
+button:hover{
+background:#1d4ed8;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<img src="logo.png">
+<h1>Bavaria State – Admin Kontrollzentrum</h1>
+</header>
+
+<div class="container">
+
+<h2>Prüfungsergebnisse</h2>
+
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Kanzlei</th>
+<th>Punkte</th>
+<th>Prozent</th>
+<th>Status</th>
+</tr>
+</thead>
+
+<tbody id="resultTable"></tbody>
+</table>
+
+<br>
+<button onclick="logout()">Logout</button>
+
+</div>
+
+<script>
+
+async function checkLogin(){
+
+const { data } = await supabaseClient.auth.getSession();
+
+if(!data.session){
+window.location.href="index.html";
+}
+
+}
+
+async function loadResults(){
+
+const { data, error } = await supabaseClient
+.from("exams")
+.select("*")
+.order("id",{ascending:false});
+
+let table = document.getElementById("resultTable");
+table.innerHTML="";
+
+data.forEach(r=>{
+
+table.innerHTML += `
+<tr>
+<td>${r.name}</td>
+<td>${r.kanzlei}</td>
+<td>${r.score}</td>
+<td>${r.percent}%</td>
+<td>${r.status}</td>
+</tr>
+`;
+
+});
+
+}
+
+async function logout(){
+
+await supabaseClient.auth.signOut();
+window.location.href="index.html";
+
+}
+
+checkLogin();
+loadResults();
+
+</script>
+
+</body>
+</html>
